@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Restore DefaultValue Generator</title>
+</head>
+<body>
+  <h2>Restore DefaultValue Update Query Generator</h2>
+  <textarea id="input" rows="15" cols="120" placeholder="Paste your INSERT records here..."></textarea>
+  <br><br>
+  <button onclick="generateUpdates()">Generate Update Queries</button>
+  <br><br>
+  <textarea id="output" rows="15" cols="120" placeholder="Generated UPDATE queries will appear here..."></textarea>
+
+ <script>
+  function generateUpdates() {
+    const input = document.getElementById("input").value;
+    const lines = input.split(/\r?\n/);
+    let updates = "";
+
+    lines.forEach(line => {
+      if (line.trim().startsWith("INSERT")) {
+        try {
+          let valuesPart = line.split("VALUES")[1].trim();
+          valuesPart = valuesPart.replace(/^\(/, "").replace(/\)$/, "");
+
+          let values = valuesPart.split(/,(?=(?:[^']*'[^']*')*[^']*$)/).map(v => v.trim());
+
+          const id = values[0];           // ID is first column
+          const defaultValue = values[18]; // 19th column is DefaultValue
+
+          let updateQuery = "";
+          if (defaultValue.toUpperCase() === "NULL") {
+            // If it's SQL NULL, set NULL
+            updateQuery = `UPDATE [common].[ProcessWiseQuestion] SET DefaultValue = NULL WHERE ID = ${id};\n`;
+          } else {
+            // Otherwise keep as string (clean N'...' or '...')
+            let dv = defaultValue;
+            if (dv.startsWith("N'") || dv.startsWith("'")) {
+              dv = dv.replace(/^N?'?/, "").replace(/'$/, "");
+            }
+            updateQuery = `UPDATE [common].[ProcessWiseQuestion] SET DefaultValue = N'${dv}' WHERE ID = ${id};\n`;
+          }
+
+          updates += updateQuery;
+        } catch (e) {
+          console.error("Error parsing line:", line, e);
+        }
+      }
+    });
+
+    document.getElementById("output").value = updates;
+  }
+</script>
+
+</body>
+</html>
